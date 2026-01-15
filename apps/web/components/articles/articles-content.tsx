@@ -1,63 +1,76 @@
-"use client"
+'use client';
 
-import { useState, useMemo } from "react"
-import { useSearchParams } from "next/navigation"
-import { Search, X } from "lucide-react"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { ArticleCard } from "@/components/articles/article-card"
-import { getAllPosts, getAllTags, categoryInfo } from "@/lib/mock-data"
+import { useState, useEffect } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { Search, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { ArticleCard } from '@/components/articles/article-card';
+import { categoryInfo } from '@/lib/mock-data';
+import type { PostSummary, TagWithCount } from '@/types/api';
 
-const categories = ["all", "projects", "certifications", "notes"] as const
+const categories = ['all', 'projects', 'certifications', 'notes'] as const;
 
-export function ArticlesContent() {
-  const searchParams = useSearchParams()
-  const initialCategory = searchParams.get("category") || "all"
+interface ArticlesContentProps {
+  posts: PostSummary[];
+  tags: TagWithCount[];
+}
 
-  const [selectedCategory, setSelectedCategory] = useState<string>(initialCategory)
-  const [selectedTags, setSelectedTags] = useState<string[]>([])
-  const [searchQuery, setSearchQuery] = useState("")
+export function ArticlesContent({ posts, tags }: ArticlesContentProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-  const allPosts = getAllPosts()
-  const allTags = getAllTags()
+  // URL state
+  const currentCategory = searchParams.get('category') || 'all';
+  const currentTag = searchParams.get('tag') || '';
+  const currentQ = searchParams.get('q') || '';
 
-  const filteredPosts = useMemo(() => {
-    return allPosts
-      .filter((post) => {
-        // カテゴリフィルター
-        if (selectedCategory !== "all" && post.category !== selectedCategory) {
-          return false
-        }
-        // タグフィルター
-        if (selectedTags.length > 0 && !selectedTags.some((tag) => post.tags?.includes(tag))) {
-          return false
-        }
-        // 検索フィルター
-        if (searchQuery) {
-          const query = searchQuery.toLowerCase()
-          return (
-            post.title?.toLowerCase().includes(query) ||
-            post.excerpt?.toLowerCase().includes(query) ||
-            post.tags?.some((tag) => tag.toLowerCase().includes(query))
-          )
-        }
-        return true
-      })
-      .sort((a, b) => new Date(b.date || "").getTime() - new Date(a.date || "").getTime())
-  }, [allPosts, selectedCategory, selectedTags, searchQuery])
+  // Local state for input
+  const [searchQuery, setSearchQuery] = useState(currentQ);
 
-  const toggleTag = (tag: string) => {
-    setSelectedTags((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]))
-  }
+  // Debounce search update
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery !== currentQ) {
+        updateFilter('q', searchQuery);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const updateFilter = (key: string, value: string | null) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value && value !== 'all') {
+      params.set(key, value);
+    } else {
+      params.delete(key);
+    }
+
+    // Reset page on filter change
+    if (key !== 'page') {
+      params.delete('page');
+    }
+
+    router.push(`${pathname}?${params.toString()}`);
+  };
+
+  const toggleTag = (tagSlug: string) => {
+    // Single select for now to match API
+    if (currentTag === tagSlug) {
+      updateFilter('tag', null);
+    } else {
+      updateFilter('tag', tagSlug);
+    }
+  };
 
   const clearFilters = () => {
-    setSelectedCategory("all")
-    setSelectedTags([])
-    setSearchQuery("")
-  }
+    setSearchQuery('');
+    router.push(pathname);
+  };
 
-  const hasActiveFilters = selectedCategory !== "all" || selectedTags.length > 0 || searchQuery !== ""
+  const hasActiveFilters = currentCategory !== 'all' || !!currentTag || !!currentQ;
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
@@ -86,32 +99,38 @@ export function ArticlesContent() {
           {categories.map((category) => (
             <Button
               key={category}
-              variant={selectedCategory === category ? "default" : "outline"}
+              variant={currentCategory === category ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setSelectedCategory(category)}
+              onClick={() => updateFilter('category', category)}
             >
-              {category === "all" ? "All" : categoryInfo[category].name}
+              {category === 'all' ? 'All' : categoryInfo[category].name}
             </Button>
           ))}
         </div>
 
         {/* Tag Filter */}
         <div className="flex flex-wrap gap-2">
-          {allTags.map((tag) => (
+          {tags.map((tag) => (
             <Badge
-              key={tag}
-              variant={selectedTags.includes(tag) ? "default" : "outline"}
+              key={tag.slug}
+              variant={currentTag === tag.slug ? 'default' : 'outline'}
               className="cursor-pointer"
-              onClick={() => toggleTag(tag)}
+              onClick={() => toggleTag(tag.slug)}
             >
-              {tag}
+              {tag.name}
+              {tag.count > 0 && <span className="ml-1 opacity-70">({tag.count})</span>}
             </Badge>
           ))}
         </div>
 
         {/* Clear Filters */}
         {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1 text-muted-foreground">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearFilters}
+            className="gap-1 text-muted-foreground"
+          >
             <X className="h-3 w-3" />
             フィルターをクリア
           </Button>
@@ -119,12 +138,12 @@ export function ArticlesContent() {
       </div>
 
       {/* Results */}
-      <div className="mb-4 text-sm text-muted-foreground">{filteredPosts.length} 件の記事</div>
+      <div className="mb-4 text-sm text-muted-foreground">{posts.length} 件の記事</div>
 
       {/* Article Grid */}
-      {filteredPosts.length > 0 ? (
+      {posts.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredPosts.map((post) => (
+          {posts.map((post) => (
             <ArticleCard key={post.id} article={post} />
           ))}
         </div>
@@ -137,5 +156,5 @@ export function ArticlesContent() {
         </div>
       )}
     </main>
-  )
+  );
 }

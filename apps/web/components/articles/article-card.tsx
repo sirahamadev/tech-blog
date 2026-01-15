@@ -1,21 +1,24 @@
-import Link from "next/link"
-import { Calendar } from "lucide-react"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import type { TreeNode } from "@/lib/mock-data"
+import Link from 'next/link';
+import { Calendar } from 'lucide-react';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import type { PostSummary } from '@/types/api';
 
 interface ArticleCardProps {
-  article: TreeNode
+  article: PostSummary;
 }
 
 export function ArticleCard({ article }: ArticleCardProps) {
+  // PostSummary has published_date, mocks had date.
+  const date = article.published_date;
+
   return (
     <Link href={`/articles/${article.slug}`}>
       <Card className="h-full transition-colors hover:bg-accent/30">
         <CardHeader className="pb-2">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Calendar className="h-3 w-3" />
-            <time dateTime={article.date}>{article.date}</time>
+            <time dateTime={date}>{date}</time>
             {article.category && (
               <Badge variant="outline" className="ml-auto text-xs">
                 {article.category}
@@ -36,5 +39,5 @@ export function ArticleCard({ article }: ArticleCardProps) {
         </CardContent>
       </Card>
     </Link>
-  )
+  );
 }
