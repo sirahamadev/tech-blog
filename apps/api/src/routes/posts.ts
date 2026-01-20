@@ -4,6 +4,27 @@ import type { PostSummary, PostDetail, ApiTag } from '../types.js';
 
 const app = new Hono();
 
+/* 最初に
+・posts を起点に
+・post_tags → tags を LEFT JOIN して
+・各 post に紐づくタグを「全部」取る前提の SELECT を組み立てる
+
+次に
+・別の SELECT で
+・指定タグを持つ post_id だけを抽出し
+・その ID 群を
+・WHERE posts.id IN (...) として 最初の SELECT に後付けする
+
+結果として
+・「タグ条件で絞られた posts」
+・かつ「各 post に紐づく全タグ」を同時に満たせる */
+
+/**
+ * GET /posts
+ * 記事一覧を取得するAPI
+ * - category / tag / q（検索）による絞り込み
+ * - ページネーション対応
+ */
 app.get('/', async (c) => {
   const category = c.req.query('category');
   const tag = c.req.query('tag');
@@ -11,9 +32,11 @@ app.get('/', async (c) => {
   const page = Number(c.req.query('page') || '1');
   const limit = Number(c.req.query('limit') || '20');
 
+  // ページング用の範囲計算
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
+  // posts を起点に、関連する tags（post_tags 経由）も一緒に取得
   let query = supabase
     .from('posts')
     .select('id, slug, title, excerpt, category, published_date, post_tags(tags(id, name, slug))', {
@@ -21,53 +44,26 @@ app.get('/', async (c) => {
     })
     .order('published_date', { ascending: false });
 
+  // カテゴリ絞り込み
   if (category) {
     query = query.eq('category', category);
   }
 
+  /**
+   * タグ絞り込み（posts ↔ tags は多対多）
+   *
+   * Supabase(PostgREST)では、1クエリで deep filter を行うと
+   * 「埋め込み tags が一致したものだけになる」など、
+   * UI的に扱いづらい結果になることがある。
+   *
+   * そのため、以下の 2-step 方式を採用している：
+   * 1. 指定タグを持つ post_id を post_tags から取得
+   * 2. posts を id IN (...) で絞り込み
+   *
+   * これにより「該当する posts」かつ「各 post に紐づく全タグ」を返せる。
+   */
   if (tag) {
-    // filtering by tag is tricky with nested relation in simple query
-    // Easier approach: Use !inner join on post_tags if possible, or simple client-side filter if small data.
-    // Supabase way: .eq('post_tags.tags.slug', tag) usually requires inner join explicitly.
-    // Let's try the syntax: .eq('post_tags.tags.slug', tag) with inner join hint if needed
-    // Actually, for M:N filter, it's often better to filter on the relation.
-    // However, Supabase JS syntax for deep filtering can be:
-    // .filter('post_tags.tags.slug', 'eq', tag)
-    // But this might filter the "tags" array in the result, not the posts themselves.
-    // A robust way for M:N filtering in minimal step:
-    // First find post_ids for the tag, then fetch posts.
-    // Or simpler: use 'post_tags!inner(tag_id)' and join tags!inner(slug)
-    query = query.eq('post_tags.tags.slug', tag);
-    // Note: This forces an inner join on post_tags and tags automatically in recent PostgREST versions if using !inner
-    // But here we are using standard supabase-js which maps to PostgREST.
-    // Let's try explicit syntax if simple eq doesn't work as expected.
-    // For now, let's assume PostgREST handles deep filtering or use the explicitly standard approach:
-    // query = query.not('post_tags', 'is', null) // if we strictly needed valid tags
-    // Let's use the !inner syntax in select for filtering:
-    // .select('..., post_tags!inner(tags!inner(slug))')
-    // But we need to select legitimate tags for display too.
-
-    // Changing strategy for tag filter compatibility:
-    // We modify the select string to enforce inner join if tag is present?
-    // No, dynamic select string is messy.
-    // Let's stick to simple .eq for now, if it fails we fix.
-    // Actually, to filter POSTS that have a tag, we need:
-    // .eq('post_tags.tags.slug', tag)
-    // This often returns posts but only with the matching tag in the nested array.
-    // Which is fine for filtering, but we might want ALL tags for that post in the response?
-    // If so, we need two queries or a complex one.
-    // For MVP, if I search for tag 'react', getting only 'react' in the tags list of the response is acceptable?
-    // Probably not ideal for UI.
-    // Proper way:
-    // const { data: matchingPosts } = await supabase.from('post_tags').select('post_id').eq('tags.slug', tag);
-    // const postIds = ...
-    // query = query.in('id', postIds)
-  }
-
-  // To support accurate "Has Tag X" AND "Show All Tags of matched posts", the 2-step approach is safest.
-  if (tag) {
-    // Step 1: Find post IDs that have this tag
-    // We need to join tags table to filter by slug
+    // Step 1: 指定されたタグを持つ post_id を取得
     const { data: tagData, error: tagError } = await supabase
       .from('post_tags')
       .select('post_id, tags!inner(slug)')
@@ -78,16 +74,22 @@ app.get('/', async (c) => {
     }
 
     const postIds = tagData.map((row: any) => row.post_id);
+
+    // 該当記事が1件もない場合は空配列を返す
     if (postIds.length === 0) {
       return c.json({ items: [], total: 0 });
     }
+
+    // Step 2: posts を post_id で絞り込み
     query = query.in('id', postIds);
   }
 
+  // フリーワード検索（タイトル / 抜粋 / 本文）
   if (q) {
     query = query.or(`title.ilike.%${q}%,excerpt.ilike.%${q}%,content_md.ilike.%${q}%`);
   }
 
+  // ページング範囲を適用
   query = query.range(from, to);
 
   const { data, error, count } = await query;
@@ -96,13 +98,13 @@ app.get('/', async (c) => {
     return c.json({ error: error.message }, 500);
   }
 
-  // Transform data to PostSummary
+  /**
+   * DBの返却形式を、フロントで使いやすい PostSummary に整形
+   */
   const items: PostSummary[] = data.map((post: any) => {
-    // flatten tags
-    // post.post_tags is array of objects { tags: { ... } }
-    const tags = post.post_tags
-      .map((pt: any) => pt.tags?.name) // Use name for existing UI compatibility or slug? Req says "tags: string[]". Usually name is good for display.
-      .filter(Boolean);
+    // post.post_tags は [{ tags: {...} }] の配列になっているため、
+    // tags.name だけを取り出してフラットな配列にする
+    const tags = post.post_tags.map((pt: any) => pt.tags?.name).filter(Boolean);
 
     return {
       id: post.id,
@@ -118,10 +120,17 @@ app.get('/', async (c) => {
   return c.json({ items, total: count });
 });
 
+/**
+ * GET /posts/:slug
+ * 記事詳細を取得するAPI
+ * - 記事本文
+ * - 紐づくタグ一覧
+ * - Notes 側に対応する note_node_id（あれば）
+ */
 app.get('/:slug', async (c) => {
   const slug = c.req.param('slug');
 
-  // We need to join note_nodes to find if there is a linked note
+  // posts を起点に、tags と note_nodes を結合して取得
   const { data, error } = await supabase
     .from('posts')
     .select('*, post_tags(tags(id, name, slug)), note_nodes(id)')
@@ -132,9 +141,10 @@ app.get('/:slug', async (c) => {
     return c.json({ error: error.message }, 404);
   }
 
+  // タグ情報をフラットな配列に変換
   const tags: ApiTag[] = data.post_tags.map((pt: any) => pt.tags).filter(Boolean);
 
-  // note_nodes is an array (relation), but unique constraint ensures 0 or 1
+  // note_nodes は配列で返るが、設計上 0 or 1 件のみ
   const noteNodeId = data.note_nodes?.[0]?.id ?? null;
 
   const postDetail: PostDetail = {

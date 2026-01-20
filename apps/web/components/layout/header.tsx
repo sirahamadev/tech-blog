@@ -1,25 +1,26 @@
-"use client"
+'use client';
 
-import Link from "next/link"
-import { useState } from "react"
-import { Menu, Github, Twitter, Linkedin } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet"
+import Link from 'next/link';
+import { useState } from 'react';
+import { Menu, Github, Twitter, Linkedin } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 const navigation = [
-  { name: "Home", href: "/" },
-  { name: "Articles", href: "/articles" },
-  { name: "Notes", href: "/notes" },
-]
+  { name: 'Home', href: '/' },
+  { name: 'Articles', href: '/articles' },
+  { name: 'Notes', href: '/notes' },
+];
 
 const socials = [
-  { name: "GitHub", href: "https://github.com", icon: Github },
-  { name: "Twitter", href: "https://twitter.com", icon: Twitter },
-  { name: "LinkedIn", href: "https://linkedin.com", icon: Linkedin },
-]
+  { name: 'GitHub', href: 'https://github.com', icon: Github },
+  { name: 'Twitter', href: 'https://twitter.com', icon: Twitter },
+  { name: 'LinkedIn', href: 'https://linkedin.com', icon: Linkedin },
+];
 
 export function Header() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -44,9 +45,15 @@ export function Header() {
 
         {/* Social Icons */}
         <div className="hidden items-center gap-2 md:flex">
+          <ThemeToggle />
           {socials.map((social) => (
             <Button key={social.name} variant="ghost" size="icon" asChild>
-              <a href={social.href} target="_blank" rel="noopener noreferrer" aria-label={social.name}>
+              <a
+                href={social.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={social.name}
+              >
                 <social.icon className="h-4 w-4" />
               </a>
             </Button>
@@ -76,9 +83,15 @@ export function Header() {
                   </Link>
                 ))}
                 <div className="flex gap-2 pt-4 border-t border-border">
+                  <ThemeToggle />
                   {socials.map((social) => (
                     <Button key={social.name} variant="ghost" size="icon" asChild>
-                      <a href={social.href} target="_blank" rel="noopener noreferrer" aria-label={social.name}>
+                      <a
+                        href={social.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={social.name}
+                      >
                         <social.icon className="h-4 w-4" />
                       </a>
                     </Button>
@@ -90,5 +103,5 @@ export function Header() {
         </div>
       </nav>
     </header>
-  )
+  );
 }
