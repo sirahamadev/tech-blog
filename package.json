@@ -6,13 +6,18 @@
   "scripts": {
     "dev": "pnpm -r dev",
     "build": "pnpm -r build",
-    "lint": "pnpm -r lint"
+    "lint": "pnpm -r lint",
+    "sync": "tsx scripts/sync.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.27.0",
   "devDependencies": {
-    "prettier": "^3.7.4"
+    "@supabase/supabase-js": "^2.90.1",
+    "dotenv": "^17.2.3",
+    "gray-matter": "^4.0.3",
+    "prettier": "^3.7.4",
+    "tsx": "^4.21.0"
   }
 }
