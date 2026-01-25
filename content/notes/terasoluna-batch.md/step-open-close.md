@@ -1,3 +1,11 @@
+---
+slug: step-open-close
+title: step open close
+tags:
+  - Terasoluna Batch
+published_date: 2026-01-25
+---
+
 # open / close の概念整理（Terasoluna Batch / Spring Batch）
 
 ## 1. open / close とは何か（結論）

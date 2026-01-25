@@ -1,5 +1,10 @@
-<!-- copied from: second-brain/TERASOLUNA-Batch/knowledge/stepScope.md -->
-<!-- original-filename: stepScope.md -->
+---
+slug: step-scope
+title: step scope
+tags:
+  - Terasoluna Batch
+published_date: 2026-01-25
+---
 
 # StepScope の理解と判断基準（Spring Batch / TERASOLUNA Batch）
 

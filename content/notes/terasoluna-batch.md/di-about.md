@@ -1,5 +1,10 @@
-<!-- copied from: second-brain/TERASOLUNA-Batch/DIについて.md -->
-<!-- original-filename: DIについて.md -->
+---
+slug: di-about
+title: di about
+tags:
+  - Terasoluna Batch
+published_date: 2026-01-25
+---
 
 > **Summary**
 > Explains Dependency Injection (DI) in the context of Spring Batch/TeraSoluna, using concrete examples like Tasklet and Repository injection.

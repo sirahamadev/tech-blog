@@ -1,3 +1,11 @@
+---
+slug: commonalization_guide
+title: commonalization guide
+tags:
+  - Terasoluna Batch
+published_date: 2026-01-25
+---
+
 TERASOLUNA Batch Framework における共通化の基準について、公式ガイドラインに基づいて解説します。
 
 ## 共通化の基本原則

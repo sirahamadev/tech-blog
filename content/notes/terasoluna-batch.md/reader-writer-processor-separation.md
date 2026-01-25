@@ -1,5 +1,10 @@
-<!-- copied from: second-brain/TERASOLUNA-Batch/読み書き処理分離.md -->
-<!-- original-filename: 読み書き処理分離.md -->
+---
+slug: reader-write-process-separation
+title: reader write process separation
+tags:
+  - Terasoluna Batch
+published_date: 2026-01-25
+---
 
 # 読み書き処理分離の考え方（TERASOLUNA Batch）
 

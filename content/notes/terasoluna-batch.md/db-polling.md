@@ -1,5 +1,10 @@
-<!-- copied from: second-brain/TERASOLUNA-Batch/DBポーリング.md -->
-<!-- original-filename: DBポーリング.md -->
+---
+slug: db-polling
+title: db polling
+tags:
+  - Terasoluna Batch
+published_date: 2026-01-25
+---
 
 # DBポーリングとは（TERASOLUNA Batch）
 

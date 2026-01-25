@@ -1,5 +1,10 @@
-<!-- copied from: second-brain/TERASOLUNA-Batch/memo_2.md -->
-<!-- original-filename: memo_2.md -->
+---
+slug: repository-structure-discussion
+title: repository structure discussion
+tags:
+  - Terasoluna Batch
+published_date: 2026-01-25
+---
 
 > **Summary**
 > Explains why the "Official Blank Project" places Repositories under job directories (e.g., `job01`) instead of a shared folder, and advises following this standard for the business team.

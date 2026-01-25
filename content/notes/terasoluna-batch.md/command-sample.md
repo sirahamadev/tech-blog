@@ -1,5 +1,10 @@
-<!-- copied from: second-brain/TERASOLUNA-Batch/memo.md -->
-<!-- original-filename: memo.md -->
+---
+slug: command-sample
+title: command sample
+tags:
+  - Terasoluna Batch
+published_date: 2026-01-25
+---
 
 > **Summary**
 > Short references for Job component placement rules and command line execution examples.

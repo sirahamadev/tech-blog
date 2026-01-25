@@ -1,3 +1,11 @@
+---
+slug: execution-overview
+title: execution overview
+tags:
+  - Terasoluna Batch
+published_date: 2026-01-25
+---
+
 # バッチ実行基盤の全体像
 
 ## このメモの目的

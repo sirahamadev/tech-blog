@@ -1,5 +1,10 @@
-<!-- copied from: second-brain/TERASOLUNA-Batch/configディレクトリについて/configディレクトリ解説.md -->
-<!-- original-filename: configディレクトリ解説.md -->
+---
+slug: config-directory-explanation
+title: config directory explanation
+tags:
+  - Terasoluna Batch
+published_date: 2026-01-25
+---
 
 # TERASOLUNA Batch Framework 設定クラス群の設計思想と役割
 

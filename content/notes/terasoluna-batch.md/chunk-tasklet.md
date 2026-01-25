@@ -1,5 +1,10 @@
-<!-- copied from: second-brain/TERASOLUNA-Batch/chunk_tasklet.md -->
-<!-- original-filename: chunk_tasklet.md -->
+---
+slug: chunk-tasklet
+title: chunk tasklet
+tags:
+  - Terasoluna Batch
+published_date: 2026-01-25
+---
 
 > **Summary**
 > Comprehensive guide comparing Chunk vs Tasklet models in Terasoluna Batch 5.x, including implementation rules, transaction differences, and selection criteria.
