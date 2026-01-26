@@ -10,6 +10,10 @@ import { ArticleCard } from '@/components/articles/article-card';
 import { categoryInfo } from '@/lib/mock-data';
 import type { PostSummary, TagWithCount } from '@/types/api';
 
+/**
+ * 記事一覧で使用するカテゴリ一覧
+ * - URLクエリにもそのまま載せるため、定数として管理
+ */
 const categories = ['all', 'projects', 'certifications', 'notes'] as const;
 
 interface ArticlesContentProps {
@@ -17,38 +21,63 @@ interface ArticlesContentProps {
   tags: TagWithCount[];
 }
 
+/**
+ * Articles 一覧画面のメインコンテンツ
+ * - 検索 / カテゴリ / タグによる絞り込みUI
+ * - 絞り込み状態は URL クエリで管理する
+ */
 export function ArticlesContent({ posts, tags }: ArticlesContentProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // URL state
+  /**
+   * 現在の URL クエリから絞り込み状態を取得
+   * - URL を single source of truth にすることで、
+   *   ・リロード耐性
+   *   ・URL共有
+   *   を実現している
+   */
   const currentCategory = searchParams.get('category') || 'all';
   const currentTag = searchParams.get('tag') || '';
   const currentQ = searchParams.get('q') || '';
 
-  // Local state for input
+  /**
+   * 検索入力欄用のローカル state
+   * - URL(q)とは即時同期せず、debounce 用に分離
+   */
   const [searchQuery, setSearchQuery] = useState(currentQ);
 
-  // Debounce search update
+  /**
+   * 検索文字列の debounce 処理
+   * - 入力のたびに URL を更新すると UX が悪いため、
+   *   500ms 待ってから URL を更新する
+   */
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchQuery !== currentQ) {
         updateFilter('q', searchQuery);
       }
     }, 500);
+
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  /**
+   * URL クエリを更新する共通関数
+   * - value が null / 'all' の場合はクエリから削除
+   * - フィルター変更時はページ番号をリセット
+   */
   const updateFilter = (key: string, value: string | null) => {
     const params = new URLSearchParams(searchParams.toString());
+
     if (value && value !== 'all') {
       params.set(key, value);
     } else {
       params.delete(key);
     }
 
-    // Reset page on filter change
+    // フィルター変更時はページングをリセットする想定
     if (key !== 'page') {
       params.delete('page');
     }
@@ -56,8 +85,12 @@ export function ArticlesContent({ posts, tags }: ArticlesContentProps) {
     router.push(`${pathname}?${params.toString()}`);
   };
 
+  /**
+   * タグの切り替え処理
+   * - 現在は API 仕様に合わせて単一選択
+   * - 同じタグを再クリックすると解除
+   */
   const toggleTag = (tagSlug: string) => {
-    // Single select for now to match API
     if (currentTag === tagSlug) {
       updateFilter('tag', null);
     } else {
@@ -65,24 +98,33 @@ export function ArticlesContent({ posts, tags }: ArticlesContentProps) {
     }
   };
 
+  /**
+   * すべてのフィルターを解除
+   * - URL クエリをクリア
+   * - 検索入力欄も初期化
+   */
   const clearFilters = () => {
     setSearchQuery('');
     router.push(pathname);
   };
 
+  /**
+   * 何らかのフィルターが有効かどうか
+   * - 「フィルターをクリア」ボタンの表示制御に使用
+   */
   const hasActiveFilters = currentCategory !== 'all' || !!currentTag || !!currentQ;
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
-      {/* Page Header */}
+      {/* ページヘッダー */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Articles</h1>
         <p className="mt-2 text-muted-foreground">カテゴリやタグで記事を探す</p>
       </div>
 
-      {/* Filters */}
+      {/* フィルター群 */}
       <div className="mb-8 space-y-4">
-        {/* Search */}
+        {/* 検索入力 */}
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -94,7 +136,7 @@ export function ArticlesContent({ posts, tags }: ArticlesContentProps) {
           />
         </div>
 
-        {/* Category Filter */}
+        {/* カテゴリフィルター */}
         <div className="flex flex-wrap gap-2">
           {categories.map((category) => (
             <Button
@@ -108,7 +150,7 @@ export function ArticlesContent({ posts, tags }: ArticlesContentProps) {
           ))}
         </div>
 
-        {/* Tag Filter */}
+        {/* タグフィルター */}
         <div className="flex flex-wrap gap-2">
           {tags.map((tag) => (
             <Badge
@@ -123,7 +165,7 @@ export function ArticlesContent({ posts, tags }: ArticlesContentProps) {
           ))}
         </div>
 
-        {/* Clear Filters */}
+        {/* フィルター解除 */}
         {hasActiveFilters && (
           <Button
             variant="ghost"
@@ -137,10 +179,10 @@ export function ArticlesContent({ posts, tags }: ArticlesContentProps) {
         )}
       </div>
 
-      {/* Results */}
+      {/* 検索結果件数 */}
       <div className="mb-4 text-sm text-muted-foreground">{posts.length} 件の記事</div>
 
-      {/* Article Grid */}
+      {/* 記事一覧 */}
       {posts.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {posts.map((post) => (
