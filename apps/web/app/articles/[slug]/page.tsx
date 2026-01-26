@@ -1,138 +1,110 @@
-import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Calendar, BookOpen } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { MarkdownRenderer } from '@/components/markdown/markdown-renderer';
-import { TableOfContents } from '@/components/markdown/table-of-contents';
+import { ArrowRight, Code, Award, FileText } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ArticleCard } from '@/components/articles/article-card';
 import { api } from '@/lib/api';
-import type { NoteNode } from '@/types/api';
+import { categoryInfo } from '@/lib/mock-data'; // ←ひとまずこれだけ残してもOK（後で lib/category-info.ts に移す）
+import type { PostSummary } from '@/types/api';
 
-interface ArticlePageProps {
-  params: Promise<{
-    slug: string;
-  }>;
-}
+const categories = ['projects', 'certifications', 'notes'] as const;
 
-// Build path string from tree for a given node ID
-function findPath(nodes: NoteNode[], targetId: string): string | null {
-  // Helper to build parent map
-  const parentMap = new Map<string, string | null>();
-  const nodeMap = new Map<string, NoteNode>();
+const categoryIcons = {
+  projects: Code,
+  certifications: Award,
+  notes: FileText,
+} as const;
 
-  for (const node of nodes) {
-    nodeMap.set(node.id, node);
-    if (node.parent_id) {
-      parentMap.set(node.id, node.parent_id);
-    }
-  }
+export default async function HomePage() {
+  // ✅ 全記事を取る（Homeは件数+最新用なので limit 大きめ or 無制限）
+  const res = await api.getPosts({ limit: 200 }); // 適当に大きめ（MVP）
+  const posts = (res as any).posts as PostSummary[]; // ← posts じゃなかったらここを直す
 
-  if (!nodeMap.has(targetId)) return null;
+  // ✅ 最新3件（published_date を使う）
+  const latestPosts = [...posts]
+    .sort(
+      (a, b) =>
+        new Date(b.published_date ?? '').getTime() - new Date(a.published_date ?? '').getTime(),
+    )
+    .slice(0, 3);
 
-  const pathSegments: string[] = [];
-  let curr: string | null = targetId;
+  // ✅ カテゴリ件数
+  const counts = posts.reduce<Record<string, number>>((acc, p) => {
+    const c = p.category;
+    if (c) acc[c] = (acc[c] ?? 0) + 1;
+    return acc;
+  }, {});
 
-  while (curr) {
-    const node = nodeMap.get(curr);
-    if (!node) break;
-    pathSegments.unshift(node.slug); // or name? API has slug and name? NoteNode has slug and title. URL path usually uses slug or name? Mock used name?
-    // Notes page uses `path` array which matches against `getNodeByPath`. `getNodeByPath` matched `n.name`.
-    // My NoteNode has `slug`. Let's assume slug is the path segment.
-    curr = parentMap.get(curr) || null;
-  }
-
-  return pathSegments.join('/');
-}
-
-export default async function ArticlePage({ params }: ArticlePageProps) {
-  const { slug } = await params;
-
-  let article;
-  try {
-    article = await api.getPostBySlug(slug);
-  } catch (e) {
-    notFound();
-  }
-
-  let notesPath: string | null = null;
-  if (article.note_node_id) {
-    try {
-      const tree = await api.getNoteTree();
-      // API returns flat nodes list in `nodes`, plus `root` (which we might ignore if we just search all nodes?
-      // note_nodes table has root nodes too. `nodes` in response usually has everything if I implemented it right or at least descendants.
-      // My `getNoteTree` implementation returns ALL nodes if root param is missing.
-      // `nodes` array in response.
-      notesPath = findPath(tree.nodes, article.note_node_id);
-    } catch (e) {
-      console.error('Failed to resolve note path', e);
-    }
-  }
+  const categoryCards = categories.map((key) => ({
+    key,
+    icon: categoryIcons[key],
+    count: counts[key] ?? 0,
+  }));
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8">
-      {/* Back Link */}
-      <Link
-        href="/articles"
-        className="mb-6 inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        記事一覧に戻る
-      </Link>
+    <main className="relative">
+      <section className="mx-auto max-w-6xl px-4 py-16 md:py-24">
+        <div className="max-w-2xl">
+          <p className="text-sm font-medium text-muted-foreground">Software Engineer</p>
+          <h1 className="mt-2 text-4xl font-bold tracking-tight text-balance md:text-5xl">
+            こんにちは、sirahamaです
+          </h1>
+          <p className="mt-4 text-lg text-muted-foreground leading-relaxed">
+            このサイトでは、個人プロジェクトや取得した資格、日々の学習ノートを公開しています。
+            技術力とアウトプットの全体像をご覧いただけます。
+          </p>
+        </div>
+      </section>
 
-      <div className="flex gap-8">
-        {/* Main Content */}
-        <article className="min-w-0 flex-1">
-          {/* Article Header */}
-          <header className="mb-8 border-b border-border pb-6">
-            <div className="mb-3 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <Calendar className="h-4 w-4" />
-              <time dateTime={article.published_date}>{article.published_date}</time>
-              {article.category && (
-                <Badge variant="outline" className="ml-2">
-                  {article.category}
-                </Badge>
-              )}
-            </div>
-            <h1 className="text-3xl font-bold leading-tight text-balance md:text-4xl">
-              {article.title}
-            </h1>
-            {article.excerpt && (
-              <p className="mt-3 text-lg text-muted-foreground">{article.excerpt}</p>
-            )}
-            <div className="mt-4 flex flex-wrap gap-2">
-              {article.tags?.map((tag) => (
-                <Badge key={tag.slug} variant="secondary">
-                  {tag.name}
-                </Badge>
-              ))}
-            </div>
+      <section className="mx-auto max-w-6xl px-4 pb-16">
+        <h2 className="mb-6 text-2xl font-semibold">Explore</h2>
 
-            {/* Notes Link */}
-            {notesPath && (
-              <div className="mt-6">
-                <Button variant="outline" size="sm" asChild>
-                  <Link href={`/notes/${notesPath}`} className="gap-2">
-                    <BookOpen className="h-4 w-4" />
-                    Notes形式で開く
-                  </Link>
-                </Button>
-              </div>
-            )}
-          </header>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {categoryCards.map((category) => {
+            const info = categoryInfo[category.key];
 
-          {/* Article Body */}
-          <div className="prose-custom max-w-none">
-            <MarkdownRenderer content={article.content_md || ''} />
-          </div>
-        </article>
+            return (
+              <Link key={category.key} href={`/articles?category=${category.key}`}>
+                <Card className="h-full transition-all hover:border-foreground/20 hover:shadow-sm">
+                  <CardHeader className="flex flex-row items-center gap-3 pb-2">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                      <category.icon className="h-5 w-5" />
+                    </div>
 
-        {/* Sidebar - TOC */}
-        <aside className="hidden w-64 shrink-0 lg:block">
-          <div className="sticky top-20">
-            <TableOfContents content={article.content_md || ''} />
-          </div>
-        </aside>
-      </div>
+                    <div>
+                      <CardTitle className="text-lg">{info.name}</CardTitle>
+                      <p className="text-xs text-muted-foreground">{category.count} 件の記事</p>
+                    </div>
+                  </CardHeader>
+
+                  <CardContent className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">{info.description}</p>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </CardContent>
+                </Card>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 pb-16">
+        <div className="mb-6 flex items-center justify-between">
+          <h2 className="text-2xl font-semibold">Latest</h2>
+          <Link
+            href="/articles"
+            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            すべて見る
+            <ArrowRight className="ml-1 inline-block h-3 w-3" />
+          </Link>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {latestPosts.map((post) => (
+            <ArticleCard key={post.id} article={post} />
+          ))}
+        </div>
+      </section>
     </main>
   );
 }
